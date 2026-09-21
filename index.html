@@ -138,28 +138,72 @@
     goBack({pay: walletID});
   }
 
-  function start(){
+  async function start(){
     if (typeof Html5Qrcode === "undefined") {
       setStatus("QR scanner library could not be loaded.", true);
       return;
     }
 
-    scanner = new Html5Qrcode("reader");
+    if (!window.isSecureContext) {
+      setStatus("Camera requires a secure HTTPS page. Please open the GitHub Pages scanner directly in Chrome/Safari.", true);
+      return;
+    }
 
-    scanner.start(
-      {facingMode:"environment"},
-      {fps:10, qrbox:{width:250,height:250}},
-      handleScan,
-      function(){ /* normal scan misses are ignored */ }
-    ).then(function(){
-      setStatus("Camera ready. Point the camera at a Z-CASH QR code.", false);
-    }).catch(function(err){
-      console.error(err);
-      setStatus(
-        "Camera could not start. Make sure this page is opened using HTTPS and allow camera permission.",
-        true
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setStatus("This browser does not provide camera access. Please open the scanner in Chrome or Safari.", true);
+      return;
+    }
+
+    try {
+      // Request camera permission explicitly first. This makes mobile
+      // permission handling much more reliable than relying on a later
+      // library call alone.
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: "environment" } },
+        audio: false
+      });
+      stream.getTracks().forEach(function(track){ track.stop(); });
+
+      const cameras = await Html5Qrcode.getCameras();
+      if (!cameras || !cameras.length) {
+        setStatus("No camera was found on this device. Check the phone camera and browser permissions.", true);
+        return;
+      }
+
+      // Prefer the rear/environment camera on phones.
+      let cameraId = cameras[0].id;
+      const rear = cameras.find(function(c){
+        return /back|rear|environment|facing/i.test(c.label || "");
+      });
+      if (rear) cameraId = rear.id;
+
+      scanner = new Html5Qrcode("reader");
+
+      await scanner.start(
+        cameraId,
+        { fps:10, qrbox:{width:250,height:250} },
+        handleScan,
+        function(){ /* normal scan misses are ignored */ }
       );
-    });
+
+      setStatus("Camera ready. Point the camera at a Z-CASH QR code.", false);
+
+    } catch(err) {
+      console.error("Z-CASH camera error:", err);
+
+      let message = "Camera could not start.";
+      if (err && err.name === "NotAllowedError") {
+        message = "Camera permission was denied. Allow Camera for this GitHub Pages site, then reload the scanner.";
+      } else if (err && err.name === "NotFoundError") {
+        message = "No camera was found on this device.";
+      } else if (err && err.name === "NotReadableError") {
+        message = "The camera is already being used by another app or browser tab. Close it and try again.";
+      } else if (err && err.name === "SecurityError") {
+        message = "The browser blocked camera access for security reasons. Open this scanner directly in HTTPS Chrome/Safari.";
+      }
+
+      setStatus(message, true);
+    }
   }
 
   start();
