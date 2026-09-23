@@ -37,7 +37,9 @@
 
   <div id="reader"></div>
 
-  <div id="status" class="status">Preparing camera…</div>
+  <div id="status" class="status">Ready. Tap START REAR CAMERA to begin scanning.</div>
+
+  <button id="startButton" type="button" onclick="startCamera()">START REAR CAMERA</button>
 
   <div id="cameraChooser" class="hidden">
     <label for="cameraSelect">Camera</label>
@@ -59,6 +61,8 @@
   const cameraChooser = document.getElementById('cameraChooser');
   const cameraSelect = document.getElementById('cameraSelect');
   const rearButton = document.getElementById('rearButton');
+  const startButton = document.getElementById('startButton');
+  let scanArmedAt = 0;
   let scanner = null;
   let devices = [];
   let activeCameraId = '';
@@ -128,6 +132,7 @@
       );
       activeCameraId = cameraId;
       running = true;
+      scanArmedAt = Date.now() + 1200;
       populateCameraSelect();
       const selected = devices.find(function(d){return d.id===cameraId;});
       setStatus('Camera ready: '+(selected && selected.label ? selected.label : 'selected camera')+'. Point it at the recipient QR.');
@@ -148,6 +153,7 @@
       function(){}
     );
     running = true;
+    scanArmedAt = Date.now() + 1200;
     setStatus('Rear camera ready. Point it at the recipient QR.');
   }
 
@@ -162,53 +168,58 @@
       function(){}
     );
     running = true;
+    scanArmedAt = Date.now() + 1200;
     setStatus('Rear camera requested. Point it at the recipient QR.');
   }
 
   async function initialise(){
     if(typeof Html5Qrcode === 'undefined'){
       setStatus('QR scanner library could not be loaded. Check your internet connection.', 'error');
+      startButton.disabled=true;
       return;
     }
+    // Do not auto-start the camera. The user starts it explicitly so the
+    // preview has time to settle and the phone can be positioned first.
+    startButton.disabled=false;
+    rearButton.disabled=true;
+  }
 
-    // Prefer the rear/environment camera explicitly before falling back to
-    // camera enumeration. This prevents a previously remembered front camera
-    // from being chosen as the first device.
+  async function startCamera(){
     try{
+      startButton.disabled=true;
+      rearButton.disabled=true;
       setStatus('Requesting the rear camera…');
       await startExactEnvironment();
-      return;
+      rearButton.disabled=false;
     }catch(exactErr){
       console.warn('Exact environment camera failed',exactErr);
-    }
-
-    try{
-      await startEnvironmentPreferred();
-      return;
-    }catch(prefErr){
-      console.warn('Preferred environment camera failed',prefErr);
-    }
-
-    try{
-      devices = await Html5Qrcode.getCameras();
-      if(!devices || !devices.length){
-        throw new Error('No camera was detected.');
+      try{
+        await startEnvironmentPreferred();
+        rearButton.disabled=false;
+      }catch(prefErr){
+        console.warn('Preferred environment camera failed',prefErr);
+        try{
+          devices=await Html5Qrcode.getCameras();
+          if(!devices || !devices.length) throw new Error('No camera was detected.');
+          populateCameraSelect();
+          const rear=preferredDevice(devices);
+          if(rear){
+            cameraSelect.value=rear.id;
+            await startDevice(rear.id);
+            rearButton.disabled=false;
+            return;
+          }
+          await startDevice(devices[0].id);
+          rearButton.disabled=false;
+        }catch(err){
+          console.error(err);
+          setStatus('Unable to access the rear camera. Allow camera permission, then choose the rear camera from the Camera list.', 'error');
+          startButton.disabled=false;
+        }
       }
-      populateCameraSelect();
-      const rear = preferredDevice(devices);
-      if(rear){
-        cameraSelect.value = rear.id;
-        await startDevice(rear.id);
-        return;
-      }
-      await startDevice(devices[0].id);
-      setStatus('A camera is active. Use the Camera selector or USE REAR CAMERA if this is not the rear camera.', 'warn');
-    }catch(err){
-      console.error(err);
-      setStatus('Unable to access the rear camera. Allow camera permission, then choose the rear camera from the Camera list.', 'error');
-      rearButton.disabled = true;
     }
   }
+  window.startCamera=startCamera;
 
   async function switchToRearCamera(){
     try{
@@ -243,18 +254,31 @@
     }
   });
 
-  function sendToOpener(walletID){
-    if(!window.opener || window.opener.closed) return false;
+  function returnResult(walletID){
+    if(!returnUrl){
+      setStatus('Scanner has no Z-CASH return address.', 'error');
+      return;
+    }
     try{
-      let targetOrigin='*';
-      try{ if(returnUrl) targetOrigin=new URL(returnUrl).origin; }catch(e){}
-      window.opener.postMessage({type:'ZCASH_QR_SCANNED',walletID:walletID,payload:walletID,nonce:returnNonce}, targetOrigin);
-      setStatus('QR captured ✓ Returning recipient to Z-CASH…');
-      setTimeout(function(){try{window.close();}catch(e){}}, 350);
-      return true;
+      const target=new URL(returnUrl);
+      target.searchParams.set('pay',walletID);
+      setStatus('QR captured ✓ Returning to Z-CASH to identify the recipient…');
+
+      // The Apps Script app runs inside a sandboxed iframe. A reliable bridge
+      // is to navigate the original Web App tab to ?pay= rather than trying
+      // to postMessage directly into that iframe.
+      if(window.opener && !window.opener.closed){
+        try{
+          window.opener.location.href=target.toString();
+          setTimeout(function(){try{window.close();}catch(e){}},500);
+          return;
+        }catch(e){
+          console.warn('Could not redirect opener',e);
+        }
+      }
+      location.replace(target.toString());
     }catch(e){
-      console.warn('postMessage failed',e);
-      return false;
+      setStatus('The Z-CASH return address is invalid.', 'error');
     }
   }
 
@@ -272,18 +296,7 @@
     }
   }
 
-  function returnResult(walletID){
-    if(sendToOpener(walletID)) return;
-    // Fallback for browsers that do not preserve window.opener.
-    goBack({pay:walletID});
-  }
-
   window.closeScanner=function(){
-    if(window.opener && !window.opener.closed){
-      try{window.opener.postMessage({type:'ZCASH_QR_SCANNER_CANCELLED',nonce:returnNonce}, '*');}catch(e){}
-      try{window.close();}catch(e){}
-      return;
-    }
     goBack({scanCancelled:'1'});
   };
 
@@ -307,6 +320,7 @@
 
   async function handleScan(decodedText){
     if(handled)return;
+    if(Date.now() < scanArmedAt) return;
     const walletID=parseWalletID(decodedText);
     if(!walletID){
       setStatus('QR detected, but it is not a valid Z-CASH recipient QR.','error');
