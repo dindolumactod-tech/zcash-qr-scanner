@@ -2,337 +2,113 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Z-CASH QR Scanner</title>
-<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+<script src="https://unpkg.com/html5-qrcode"></script>
 <style>
-  *{box-sizing:border-box}
-  body{margin:0;min-height:100vh;font-family:Arial,Helvetica,sans-serif;background:#f0fdf4;color:#14532d;display:flex;justify-content:center;align-items:flex-start;padding:18px}
-  .app{width:100%;max-width:520px;background:#fff;border-radius:18px;padding:20px;box-shadow:0 8px 30px rgba(0,0,0,.10);text-align:center}
-  .logo{width:220px;height:145px;object-fit:contain;margin:0 auto 4px;display:block}
-  h1{margin:4px 0;font-size:25px;color:#166534}
-  p{margin:6px 0 16px;color:#4b5563}
-  #reader{width:100%;min-height:280px;overflow:hidden;border-radius:14px;background:#0f172a}
-  #reader video{width:100%!important;height:auto!important;display:block;object-fit:cover}
-  .status{margin:14px 0;padding:12px;border-radius:10px;background:#ecfdf5;color:#166534;font-weight:600;line-height:1.4}
-  .status.error{background:#fef2f2;color:#b91c1c}
-  .status.warn{background:#fffbeb;color:#92400e}
-  label{text-align:left;display:block;font-weight:700;margin:12px 0 6px;color:#14532d}
-  select,button{width:100%;padding:13px;border-radius:10px;font-size:15px}
-  select{border:1px solid #86efac;background:#fff;color:#14532d}
-  button{border:0;background:#15803d;color:#fff;font-weight:700}
-  button.secondary{background:#166534;margin-top:8px}
-  button:disabled{opacity:.55}
-  .small{font-size:12px;color:#6b7280;margin-top:12px;line-height:1.4}
-  .hidden{display:none}
-  .camera-line{margin-top:12px;text-align:left;font-size:13px;color:#4b5563}
-  .camera-line strong{color:#14532d}
+  body{font-family:Arial,sans-serif;margin:0;background:#f5f7f5;color:#15301f}
+  .wrap{max-width:520px;margin:0 auto;padding:18px}
+  .card{background:#fff;border-radius:18px;padding:18px;box-shadow:0 8px 28px rgba(0,0,0,.10)}
+  h1{margin:0 0 6px;text-align:center;color:#15803d;font-size:26px}
+  p{margin:6px 0 14px;text-align:center}
+  #reader{width:100%;min-height:280px}
+  .status{margin-top:12px;padding:10px;border-radius:10px;background:#edf7ef;text-align:center}
+  .status.error{background:#fdecec;color:#9b1c1c}
+  button{width:100%;border:0;border-radius:11px;padding:12px;margin-top:10px;font-weight:700;font-size:15px;cursor:pointer}
+  #start{background:#15803d;color:#fff}
+  #close{background:#e5e7eb;color:#1f2937}
+  .small{text-align:center;font-size:12px;color:#667085;margin-top:10px}
+  select{width:100%;padding:11px;border-radius:10px;border:1px solid #cbd5e1;margin-top:8px}
 </style>
 </head>
 <body>
-<div class="app">
-  <img class="logo" alt="Z-CASH" src="data:image/png;base64,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">
+<div class="wrap"><div class="card">
   <h1>Z-CASH QR SCANNER</h1>
-  <p>Scan the recipient's Z-CASH QR code</p>
-
+  <p>Scan the recipient's Z-CASH QR code.</p>
   <div id="reader"></div>
-
-  <div id="status" class="status">Ready. Tap START REAR CAMERA to begin scanning.</div>
-
-  <button id="startButton" type="button" onclick="startCamera()">START REAR CAMERA</button>
-
-  <div id="cameraChooser" class="hidden">
-    <label for="cameraSelect">Camera</label>
-    <select id="cameraSelect"></select>
-    <div class="camera-line"><strong>Rear camera is selected automatically when detected.</strong> You can switch cameras here if your phone reports more than one camera.</div>
-  </div>
-
-  <button id="rearButton" class="secondary" type="button" onclick="switchToRearCamera()">USE REAR CAMERA</button>
-  <button id="closeButton" type="button" onclick="closeScanner()" style="margin-top:8px">RETURN TO Z-CASH</button>
-  <div class="small">Allow camera permission. For the best result, hold the phone so the QR code is flat, bright, and fills the scan box.</div>
-</div>
-
+  <div id="status" class="status">Tap START REAR CAMERA. Allow camera permission when asked.</div>
+  <select id="cameraSelect" style="display:none"></select>
+  <button id="start">START REAR CAMERA</button>
+  <button id="close">CLOSE SCANNER</button>
+  <div class="small">The scanner returns the recipient Wallet ID to Z-CASH automatically.</div>
+</div></div>
 <script>
 (function(){
-  const params = new URLSearchParams(location.search);
-  const returnUrl = params.get('return') || '';
-  const returnNonce = params.get('returnNonce') || '';
-  const statusEl = document.getElementById('status');
-  const cameraChooser = document.getElementById('cameraChooser');
-  const cameraSelect = document.getElementById('cameraSelect');
-  const rearButton = document.getElementById('rearButton');
-  const startButton = document.getElementById('startButton');
-  let scanArmedAt = 0;
-  let scanner = null;
-  let devices = [];
-  let activeCameraId = '';
-  let handled = false;
-  let running = false;
+  const qs=new URLSearchParams(location.search);
+  const returnUrl=qs.get('return')||'';
+  const statusEl=document.getElementById('status');
+  const startBtn=document.getElementById('start');
+  const closeBtn=document.getElementById('close');
+  const select=document.getElementById('cameraSelect');
+  let scanner=null, running=false, handled=false;
 
-  function setStatus(text, type){
-    statusEl.textContent = text;
-    statusEl.className = 'status' + (type ? ' '+type : '');
+  function status(t,error){statusEl.textContent=t;statusEl.className='status'+(error?' error':'');}
+  function targetUrl(extra){
+    if(!returnUrl) return '';
+    try{const u=new URL(returnUrl);Object.keys(extra||{}).forEach(k=>u.searchParams.set(k,extra[k]));return u.toString();}
+    catch(e){return '';}
   }
-
-  function scoreRear(label){
-    const s = String(label || '').toLowerCase();
-    let score = 0;
-    if(/back|rear|environment|world|main/.test(s)) score += 100;
-    if(/front|user|selfie/.test(s)) score -= 100;
-    if(/camera\s*2/.test(s)) score += 20;
-    if(/camera\s*1/.test(s)) score += 5;
-    return score;
-  }
-
-  function preferredDevice(list){
-    if(!list || !list.length) return null;
-    let best = list[0], bestScore = scoreRear(best.label);
-    for(let i=1;i<list.length;i++){
-      const sc = scoreRear(list[i].label);
-      if(sc > bestScore){best=list[i];bestScore=sc;}
-    }
-    // When labels are generic, the last device is often the rear camera.
-    if(bestScore <= 0 && list.length > 1) best = list[list.length-1];
-    return best;
-  }
-
-  function populateCameraSelect(){
-    if(!devices.length){
-      cameraChooser.classList.add('hidden');
-      return;
-    }
-    cameraChooser.classList.toggle('hidden', devices.length < 2);
-    cameraSelect.innerHTML = devices.map(function(d,i){
-      const label = d.label || ('Camera '+(i+1));
-      return '<option value="'+String(d.id).replace(/"/g,'&quot;')+'">'+escapeHTML(label)+'</option>';
-    }).join('');
-    if(activeCameraId) cameraSelect.value = activeCameraId;
-  }
-
-  function escapeHTML(v){return String(v ?? '').replace(/[&<>"']/g,function(s){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s];});}
-
-  async function stopCurrent(){
-    if(!scanner || !running) return;
-    try{await scanner.stop();}catch(e){}
-    try{scanner.clear();}catch(e){}
-    running = false;
-  }
-
-  async function startDevice(cameraId){
-    if(!cameraId) throw new Error('No camera selected.');
-    await stopCurrent();
-    scanner = scanner || new Html5Qrcode('reader');
-    setStatus('Starting selected camera…');
+  function returnToZcash(extra){
+    const target=targetUrl(extra);
+    if(!target){status('Z-CASH return address is missing or invalid.',true);return;}
     try{
-      await scanner.start(
-        cameraId,
-        {fps:10,qrbox:{width:250,height:250},aspectRatio:1.0},
-        handleScan,
-        function(){}
-      );
-      activeCameraId = cameraId;
-      running = true;
-      scanArmedAt = Date.now() + 1200;
-      populateCameraSelect();
-      const selected = devices.find(function(d){return d.id===cameraId;});
-      setStatus('Camera ready: '+(selected && selected.label ? selected.label : 'selected camera')+'. Point it at the recipient QR.');
-    }catch(err){
-      running = false;
-      throw err;
-    }
-  }
-
-  async function startExactEnvironment(){
-    await stopCurrent();
-    scanner = scanner || new Html5Qrcode('reader');
-    setStatus('Trying the rear camera directly…');
-    await scanner.start(
-      {facingMode:{exact:'environment'}},
-      {fps:10,qrbox:{width:250,height:250},aspectRatio:1.0},
-      handleScan,
-      function(){}
-    );
-    running = true;
-    scanArmedAt = Date.now() + 1200;
-    setStatus('Rear camera ready. Point it at the recipient QR.');
-  }
-
-  async function startEnvironmentPreferred(){
-    await stopCurrent();
-    scanner = scanner || new Html5Qrcode('reader');
-    setStatus('Trying the rear camera…');
-    await scanner.start(
-      {facingMode:'environment'},
-      {fps:10,qrbox:{width:250,height:250},aspectRatio:1.0},
-      handleScan,
-      function(){}
-    );
-    running = true;
-    scanArmedAt = Date.now() + 1200;
-    setStatus('Rear camera requested. Point it at the recipient QR.');
-  }
-
-  async function initialise(){
-    if(typeof Html5Qrcode === 'undefined'){
-      setStatus('QR scanner library could not be loaded. Check your internet connection.', 'error');
-      startButton.disabled=true;
-      return;
-    }
-    // Do not auto-start the camera. The user starts it explicitly so the
-    // preview has time to settle and the phone can be positioned first.
-    startButton.disabled=false;
-    rearButton.disabled=true;
-  }
-
-  async function startCamera(){
-    try{
-      startButton.disabled=true;
-      rearButton.disabled=true;
-      setStatus('Requesting the rear camera…');
-      await startExactEnvironment();
-      rearButton.disabled=false;
-    }catch(exactErr){
-      console.warn('Exact environment camera failed',exactErr);
-      try{
-        await startEnvironmentPreferred();
-        rearButton.disabled=false;
-      }catch(prefErr){
-        console.warn('Preferred environment camera failed',prefErr);
-        try{
-          devices=await Html5Qrcode.getCameras();
-          if(!devices || !devices.length) throw new Error('No camera was detected.');
-          populateCameraSelect();
-          const rear=preferredDevice(devices);
-          if(rear){
-            cameraSelect.value=rear.id;
-            await startDevice(rear.id);
-            rearButton.disabled=false;
-            return;
-          }
-          await startDevice(devices[0].id);
-          rearButton.disabled=false;
-        }catch(err){
-          console.error(err);
-          setStatus('Unable to access the rear camera. Allow camera permission, then choose the rear camera from the Camera list.', 'error');
-          startButton.disabled=false;
-        }
-      }
-    }
-  }
-  window.startCamera=startCamera;
-
-  async function switchToRearCamera(){
-    try{
-      rearButton.disabled = true;
-      if(!devices.length){devices = await Html5Qrcode.getCameras(); populateCameraSelect();}
-      const rear = preferredDevice(devices);
-      if(rear){
-        await startDevice(rear.id);
-        cameraSelect.value = rear.id;
-        setStatus('Rear camera selected: '+(rear.label || 'rear camera')+'. Point it at the recipient QR.');
+      if(window.opener && !window.opener.closed){
+        window.opener.location.href=target;
+        setTimeout(function(){try{window.close();}catch(e){}},250);
+        status('Recipient captured. Returning to Z-CASH…');
         return;
       }
-      try{
-        await startExactEnvironment();
-      }catch(e){
-        await startEnvironmentPreferred();
-      }
-    }catch(err){
-      console.error(err);
-      setStatus('The rear camera could not be selected on this browser. Please choose another camera from the Camera list.', 'error');
-    }finally{rearButton.disabled=false;}
-  }
-  window.switchToRearCamera=switchToRearCamera;
-
-  cameraSelect.addEventListener('change', async function(){
-    try{
-      await startDevice(this.value);
-      setStatus('Camera changed. Point it at the recipient QR.');
-    }catch(err){
-      console.error(err);
-      setStatus('That camera could not be started. Please choose another camera.', 'error');
-    }
-  });
-
-  function returnResult(walletID){
-    if(!returnUrl){
-      setStatus('Scanner has no Z-CASH return address.', 'error');
-      return;
-    }
-    try{
-      const target=new URL(returnUrl);
-      target.searchParams.set('pay',walletID);
-      setStatus('QR captured ✓ Returning to Z-CASH to identify the recipient…');
-
-      // The Apps Script app runs inside a sandboxed iframe. A reliable bridge
-      // is to navigate the original Web App tab to ?pay= rather than trying
-      // to postMessage directly into that iframe.
-      if(window.opener && !window.opener.closed){
-        try{
-          window.opener.location.href=target.toString();
-          setTimeout(function(){try{window.close();}catch(e){}},500);
-          return;
-        }catch(e){
-          console.warn('Could not redirect opener',e);
-        }
-      }
-      location.replace(target.toString());
-    }catch(e){
-      setStatus('The Z-CASH return address is invalid.', 'error');
-    }
-  }
-
-  function goBack(extra){
-    if(!returnUrl){
-      setStatus('Scanner has no Z-CASH return address.', 'error');
-      return;
-    }
-    try{
-      const target = new URL(returnUrl);
-      Object.keys(extra||{}).forEach(function(k){target.searchParams.set(k,extra[k]);});
-      location.href=target.toString();
-    }catch(e){
-      setStatus('The Z-CASH return address is invalid.', 'error');
-    }
-  }
-
-  window.closeScanner=function(){
-    goBack({scanCancelled:'1'});
-  };
-
-  function parseWalletID(raw){
-    const value=String(raw||'').trim();
-    if(!value)return '';
-    try{
-      const u=new URL(value);
-      const pay=u.searchParams.get('pay');
-      if(pay)return pay.trim();
-      const wallet=u.searchParams.get('wallet') || u.searchParams.get('walletid');
-      if(wallet)return wallet.trim();
-      const user=u.searchParams.get('user') || u.searchParams.get('username');
-      if(user)return user.trim();
     }catch(e){}
-    if(/^(?:WAL|WLT|USR)-[A-Za-z0-9_-]+$/i.test(value)) return value;
-    if(/^ZCASH\|(?:WALLET|USERID)\|/i.test(value)) return value;
-    if(/^ZCASH:/i.test(value)) return value;
-    return '';
+    location.href=target;
   }
-
-  async function handleScan(decodedText){
-    if(handled)return;
-    if(Date.now() < scanArmedAt) return;
-    const walletID=parseWalletID(decodedText);
-    if(!walletID){
-      setStatus('QR detected, but it is not a valid Z-CASH recipient QR.','error');
-      return;
+  async function stop(){
+    if(scanner && running){try{await scanner.stop();}catch(e){} try{scanner.clear();}catch(e){}}
+    scanner=null;running=false;
+  }
+  async function startWithConfig(cfg,label){
+    await stop();
+    scanner=new Html5Qrcode('reader');
+    try{
+      await scanner.start(cfg,{fps:5,qrbox:{width:250,height:250}},onScan,function(){});
+      running=true;status(label||'Rear camera ready. Point at the Z-CASH QR code.');
+      startBtn.disabled=true;
+      return true;
+    }catch(e){
+      running=false;scanner=null;return false;
     }
-    handled=true;
-    await stopCurrent();
-    returnResult(walletID);
   }
+  async function startScanner(){
+    if(running||handled)return;
+    if(typeof Html5Qrcode==='undefined'){status('QR scanner library could not be loaded.',true);return;}
+    startBtn.disabled=true;status('Starting rear camera…');
+    // First try the browser's exact rear/environment camera constraint.
+    if(await startWithConfig({facingMode:{exact:'environment'}},'Rear camera ready. Point at the Z-CASH QR code.'))return;
 
-  initialise();
+    // If exact environment selection is unsupported, enumerate cameras after
+    // permission and choose the one whose label most strongly suggests rear.
+    try{
+      const cameras=await Html5Qrcode.getCameras();
+      if(!cameras||!cameras.length)throw new Error('No camera found.');
+      select.innerHTML='';
+      let preferred=cameras.find(c=>/back|rear|environment|world/i.test(c.label||''))||cameras[cameras.length-1];
+      cameras.forEach(c=>{const o=document.createElement('option');o.value=c.id;o.textContent=c.label||'Camera';if(c.id===preferred.id)o.selected=true;select.appendChild(o);});
+      select.style.display=cameras.length>1?'block':'none';
+      if(await startWithConfig({deviceId:{exact:preferred.id}},'Rear camera ready. Point at the Z-CASH QR code.'))return;
+    }catch(e){}
+    startBtn.disabled=false;status('Unable to start the rear camera. Allow camera permission and try again.',true);
+  }
+  async function onScan(decodedText){
+    if(handled)return;
+    const raw=String(decodedText||'').trim(); if(!raw)return;
+    let wallet='';
+    try{const u=new URL(raw);wallet=u.searchParams.get('pay')||'';}catch(e){}
+    if(!wallet && /^WAL-[A-Za-z0-9_-]+$/i.test(raw))wallet=raw;
+    if(!wallet){status('This is not a valid Z-CASH payment QR code.',true);return;}
+    handled=true;await stop();status('QR captured. Returning to Z-CASH…');returnToZcash({pay:wallet});
+  }
+  select.addEventListener('change',async function(){if(!this.value||handled)return;const ok=await startWithConfig({deviceId:{exact:this.value}},'Selected camera ready. Point at the Z-CASH QR code.');if(!ok){status('Selected camera could not be started.',true);startBtn.disabled=false;}});
+  startBtn.addEventListener('click',startScanner);
+  closeBtn.addEventListener('click',async function(){await stop();returnToZcash({scanCancelled:'1'});});
 })();
 </script>
-</body>
-</html>
+</body></html>
