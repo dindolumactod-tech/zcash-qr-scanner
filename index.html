@@ -170,8 +170,26 @@
       setStatus('QR scanner library could not be loaded. Check your internet connection.', 'error');
       return;
     }
+
+    // Prefer the rear/environment camera explicitly before falling back to
+    // camera enumeration. This prevents a previously remembered front camera
+    // from being chosen as the first device.
     try{
-      setStatus('Requesting camera permission…');
+      setStatus('Requesting the rear camera…');
+      await startExactEnvironment();
+      return;
+    }catch(exactErr){
+      console.warn('Exact environment camera failed',exactErr);
+    }
+
+    try{
+      await startEnvironmentPreferred();
+      return;
+    }catch(prefErr){
+      console.warn('Preferred environment camera failed',prefErr);
+    }
+
+    try{
       devices = await Html5Qrcode.getCameras();
       if(!devices || !devices.length){
         throw new Error('No camera was detected.');
@@ -180,31 +198,14 @@
       const rear = preferredDevice(devices);
       if(rear){
         cameraSelect.value = rear.id;
-        try{
-          await startDevice(rear.id);
-          return;
-        }catch(firstErr){
-          console.warn('Preferred camera start failed',firstErr);
-        }
-      }
-      try{
-        await startExactEnvironment();
+        await startDevice(rear.id);
         return;
-      }catch(exactErr){
-        console.warn('Exact environment camera failed',exactErr);
       }
-      try{
-        await startEnvironmentPreferred();
-        return;
-      }catch(prefErr){
-        console.warn('Environment camera failed',prefErr);
-      }
-      // Last resort: use any enumerated camera, but show the selector so the user can choose another.
       await startDevice(devices[0].id);
       setStatus('A camera is active. Use the Camera selector or USE REAR CAMERA if this is not the rear camera.', 'warn');
     }catch(err){
       console.error(err);
-      setStatus('Unable to access the phone camera. Allow camera permission, then reload this scanner. If more than one camera is available, use the camera selector.', 'error');
+      setStatus('Unable to access the rear camera. Allow camera permission, then choose the rear camera from the Camera list.', 'error');
       rearButton.disabled = true;
     }
   }
@@ -245,7 +246,9 @@
   function sendToOpener(walletID){
     if(!window.opener || window.opener.closed) return false;
     try{
-      window.opener.postMessage({type:'ZCASH_QR_SCANNED',walletID:walletID,payload:walletID,nonce:returnNonce}, '*');
+      let targetOrigin='*';
+      try{ if(returnUrl) targetOrigin=new URL(returnUrl).origin; }catch(e){}
+      window.opener.postMessage({type:'ZCASH_QR_SCANNED',walletID:walletID,payload:walletID,nonce:returnNonce}, targetOrigin);
       setStatus('QR captured ✓ Returning recipient to Z-CASH…');
       setTimeout(function(){try{window.close();}catch(e){}}, 350);
       return true;
